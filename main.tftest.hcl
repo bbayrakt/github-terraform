@@ -1,0 +1,125 @@
+# run "create_repository_with_defaults" {
+# command = apply
+
+# variables {
+# repo_name = "test-repo-defaults"
+# }
+
+# assert {
+# condition     = github_repository.repo.name == "test-repo-defaults"
+# error_message = "Repository name did not match expected value."
+# }
+# }
+
+# # Test security and analysis settings
+# run "test_security_and_analysis_configuration" {
+# command = apply
+
+# variables {
+# repo_name       = "security-test-repo"
+# repo_visibility = "public"
+# repo_security_and_analysis = {
+# secret_scanning = {
+# status = "enabled"
+# }
+# secret_scanning_push_protection = {
+# status = "enabled"
+# }
+# }
+# }
+
+# assert {
+# condition = (
+# github_repository.repo.security_and_analysis[0].secret_scanning[0].status == "enabled" &&
+# github_repository.repo.security_and_analysis[0].secret_scanning_push_protection[0].status == "enabled"
+# )
+# error_message = "Security and analysis block should be configured"
+# }
+# }
+
+# Test GitHub Pages configuration
+# run "test_pages_configuration" {
+# command = apply
+
+# variables {
+# repo_name = "pages-test-repo"
+# repo_description = "Test repository with GitHub Pages enabled"
+# repo_visibility = "public"
+# repo_auto_init = true
+
+# # Configure GitHub Pages
+# repo_pages = {
+# source_branch = "main"
+# source_path = "/docs"
+# build_type = "legacy"
+# cname = "example.com"
+# }
+# }
+
+# assert {
+# condition     = github_repository.repo.pages[0].build_type == "legacy"
+# error_message = "Pages build type should be set to legacy"
+# }
+
+# assert {
+# condition     = github_repository.repo.pages[0].source[0].branch == "main"
+# error_message = "Pages source branch should be set to gh-pages"
+# }
+
+# assert {
+# condition     = github_repository.repo.pages[0].source[0].path == "/docs"
+# error_message = "Pages source path should be set to /docs"
+# }
+# }
+
+# Test GitHub Pages with workflow build type (no source block)
+# run "test_pages_workflow_build_type" {
+# command = apply
+
+# variables {
+# repo_name = "pages-workflow-test-repo"
+# repo_description = "Test repository with GitHub Pages using workflow build type"
+# repo_visibility = "public"
+
+# repo_pages = {
+# build_type = "workflow"
+# cname = "workflow.example.com"
+# }
+# }
+
+# assert {
+# condition     = github_repository.repo.pages[0].build_type == "workflow"
+# error_message = "Pages build type should be set to workflow"
+# }
+
+# assert {
+# condition     = github_repository.repo.pages[0].cname == "workflow.example.com"
+# error_message = "Pages CNAME should be set to workflow.example.com"
+# }
+# }
+
+# Test GitHub repository template
+run "test_repository_template" {
+  command = apply
+
+  variables {
+    repo_name        = "template-test-repo"
+    repo_description = "Test repository template"
+    repo_visibility  = "public"
+
+    repo_template = {
+      owner                = "bbayrakt"
+      repository           = "template-repo-test"
+      include_all_branches = false
+    }
+  }
+
+  assert {
+    condition = (
+      github_repository.repo.template[0].owner == "bbayrakt" &&
+      github_repository.repo.template[0].repository == "template-repo-test" &&
+      github_repository.repo.template[0].include_all_branches == false
+    )
+    error_message = "Repository template configuration did not match expected values."
+  }
+}
