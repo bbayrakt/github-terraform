@@ -73,7 +73,7 @@ resource "github_repository" "repo" {
       }
 
       dynamic "secret_scanning" {
-        for_each = security_and_analysis.value.secret_scanning != null ? [security_and_analysis.value.secret_scanning] : []
+        for_each = security_and_analysis.value.secret_scanning != null && var.repo_visibility == "public" ? [security_and_analysis.value.secret_scanning] : []
 
         content {
           status = secret_scanning.value.status
@@ -81,7 +81,7 @@ resource "github_repository" "repo" {
       }
 
       dynamic "secret_scanning_push_protection" {
-        for_each = security_and_analysis.value.secret_scanning_push_protection != null ? [security_and_analysis.value.secret_scanning_push_protection] : []
+        for_each = security_and_analysis.value.secret_scanning_push_protection != null && var.repo_visibility == "public" ? [security_and_analysis.value.secret_scanning_push_protection] : []
 
         content {
           status = secret_scanning_push_protection.value.status
@@ -99,4 +99,64 @@ resource "github_repository" "repo" {
       include_all_branches = template.value.include_all_branches
     }
   }
+}
+
+resource "github_branch" "branches" {
+  for_each = var.repo_branches
+
+  repository    = github_repository.repo.name
+  branch        = each.value.branch
+  source_branch = each.value.source_branch
+  source_sha    = each.value.source_sha
+}
+
+# Branch protection for branches with protect_branch=true
+resource "github_branch_protection" "branch_protection" {
+  for_each = {
+    for key, branch in var.repo_branches : key => branch
+    if branch.protection != null
+  }
+
+  repository_id = github_repository.repo.name
+  pattern       = each.value.branch
+
+  enforce_admins                  = try(each.value.protection.enforce_admins, false)
+  require_signed_commits          = try(each.value.protection.require_signed_commits, false)
+  required_linear_history         = try(each.value.protection.required_linear_history, true)
+  require_conversation_resolution = try(each.value.protection.require_conversation_resolution, true)
+  force_push_bypassers            = try(each.value.protection.force_push_bypassers, [])
+  allows_deletions                = try(each.value.protection.allows_deletions, false)
+  allows_force_pushes             = try(each.value.protection.allows_force_pushes, false)
+  lock_branch                     = try(each.value.protection.lock_branch, false)
+
+  dynamic "required_status_checks" {
+    for_each = try(each.value.protection.required_status_checks, null) != null ? [1] : []
+    content {
+      strict   = try(each.value.protection.required_status_checks.strict, false)
+      contexts = try(each.value.protection.required_status_checks.contexts, [])
+    }
+  }
+
+  dynamic "required_pull_request_reviews" {
+    for_each = try(each.value.protection.required_pull_request_reviews, null) != null ? [1] : []
+    content {
+      dismiss_stale_reviews = try(each.value.protection.required_pull_request_reviews.dismiss_stale_reviews, false)
+      restrict_dismissals = try(each.value.protection.required_pull_request_reviews.restrict_dismissals, false)
+      dismissal_restrictions = try(each.value.protection.required_pull_request_reviews.dismissal_restrictions, [])
+      pull_request_bypassers = try(each.value.protection.required_pull_request_reviews.pull_request_bypassers, [])
+      require_code_owner_reviews = try(each.value.protection.required_pull_request_reviews.require_code_owner_reviews, false)
+      required_approving_review_count = try(each.value.protection.required_pull_request_reviews.required_approving_review_count, 1)
+      require_last_push_approval = try(each.value.protection.required_pull_request_reviews.require_last_push_approval, false)
+    }
+  }
+
+  dynamic "restrict_pushes" {
+    for_each = try(each.value.protection.restrict_pushes, null) != null ? [1] : []
+    content {
+      blocks_creations = try(each.value.protection.restrict_pushes.blocks_creations, false)
+      push_allowances = try(each.value.protection.restrict_pushes.push_allowances, [])
+    }
+  }
+
+  depends_on = [github_branch.branches]
 }

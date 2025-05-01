@@ -22,3 +22,12 @@ output "repository_http_clone_url" {
   description = "The HTTP clone URL."
   value       = github_repository.repo.http_clone_url
 }
+
+output "branches" {
+  description = "Map of created branches."
+  value = { for key, branch in github_branch.branches : key => {
+    name       = branch.branch
+    repository = branch.repository
+    protected  = contains(keys(github_branch_protection.branch_protection), key)
+  } }
+}

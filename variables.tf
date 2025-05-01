@@ -270,3 +270,40 @@ variable "repo_template" {
   })
   default = null
 }
+
+variable "repo_branches" {
+  description = "Map of branch configurations to create in the repository. Each branch can have an optional protection object."
+  type = map(object({
+    branch        = string                   # Name of the branch
+    source_branch = optional(string, "main") # Name of the branch to base from
+    source_sha    = optional(string)         # The commit hash to base the branch from
+    protection = optional(object({
+      enforce_admins                  = optional(bool)
+      require_signed_commits          = optional(bool)
+      required_linear_history         = optional(bool)
+      require_conversation_resolution = optional(bool)
+      force_push_bypassers            = optional(list(string))
+      allows_deletions                = optional(bool)
+      allows_force_pushes             = optional(bool)
+      lock_branch                     = optional(bool)
+      required_status_checks = optional(object({
+        strict   = optional(bool)
+        contexts = optional(list(string))
+      }))
+      required_pull_request_reviews = optional(object({
+        dismiss_stale_reviews              = optional(bool)
+        restrict_dismissals                = optional(bool)
+        dismissal_restrictions             = optional(list(string))
+        pull_request_bypassers             = optional(list(string))
+        require_code_owner_reviews         = optional(bool)
+        required_approving_review_count    = optional(number)
+        require_last_push_approval         = optional(bool)
+      }))
+      restrict_pushes = optional(object({
+        blocks_creations = optional(bool)
+        push_allowances  = optional(list(string))
+      }))
+    }), null)
+  }))
+  default = {}
+}
