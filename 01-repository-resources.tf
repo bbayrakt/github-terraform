@@ -160,3 +160,49 @@ resource "github_branch_protection" "branch_protection" {
 
   depends_on = [github_branch.branches]
 }
+
+resource "github_repository_collaborators" "collaborators" {
+  repository = github_repository.repo.name
+
+  dynamic "user" {
+    for_each = var.repo_collaborators_users
+    content {
+      permission = user.value.permission
+      username   = user.value.username
+    }
+  }
+  
+  dynamic "team" {
+    for_each = var.repo_collaborators_teams
+    content {
+      permission = team.value.permission
+      team_id = team.value.team_id
+    }
+  }
+}
+
+resource "github_repository_environment" "envs" {
+  for_each = var.repo_environments
+
+  environment         = each.value.environment
+  repository          = github_repository.repo.name
+  wait_timer          = each.value.wait_timer
+  can_admins_bypass   = each.value.can_admins_bypass
+  prevent_self_review = each.value.prevent_self_review
+
+  dynamic "reviewers" {
+    for_each = each.value.reviewers != null ? [each.value.reviewers] : []
+    content {
+      users = try(reviewers.value.user_ids, [])
+      teams = try(reviewers.value.team_ids, [])
+    }
+  }
+
+  dynamic "deployment_branch_policy" {
+    for_each = each.value.deployment_branch_policy != null ? [each.value.deployment_branch_policy] : []
+    content {
+      protected_branches     = deployment_branch_policy.value.protected_branches
+      custom_branch_policies = deployment_branch_policy.value.custom_branch_policies
+    }
+  }
+}

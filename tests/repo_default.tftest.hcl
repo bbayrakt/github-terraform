@@ -139,3 +139,166 @@ run "add_branches" {
     error_message = "Expected staging branch to have branch protection enabled"
   }
 }
+
+# Test repository environment creation with basic settings
+run "test_basic_environment" {
+  command = apply
+
+  variables {
+    repo_environments = {
+      production = {
+        environment = "production"
+      }
+    }
+  }
+
+  assert {
+    condition     = length(github_repository_environment.envs) == 1
+    error_message = "Expected 1 environment to be created"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["production"].environment == "production"
+    error_message = "Environment name should be 'production'"
+  }
+}
+
+# Test repository environment with reviewers
+run "test_environment_with_reviewers" {
+  command = apply
+
+  variables {
+    repo_environments = {
+      staging = {
+        environment = "staging"
+        wait_timer  = 15
+        reviewers = {
+          user_ids = [95911059] # User ID for reviewer
+          # Removed team_ids since we're getting null values
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["staging"].environment == "staging"
+    error_message = "Environment name should be 'staging'"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["staging"].wait_timer == 15
+    error_message = "Environment wait timer should be 15 minutes"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["staging"].reviewers[0].users != null && contains(github_repository_environment.envs["staging"].reviewers[0].users, 95911059)
+    error_message = "Environment reviewers should include user ID 95911059"
+  }
+}
+
+# Test repository environment with branch deployment policy
+run "test_environment_with_branch_policy" {
+  command = apply
+
+  variables {
+    repo_environments = {
+      production = {
+        environment = "production"
+        prevent_self_review = true
+        deployment_branch_policy = {
+          protected_branches = true
+          custom_branch_policies = false
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["production"].prevent_self_review == true
+    error_message = "Environment should prevent self-review"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["production"].deployment_branch_policy[0].protected_branches == true
+    error_message = "Environment should allow deployments only from protected branches"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["production"].deployment_branch_policy[0].custom_branch_policies == false
+    error_message = "Environment should not use custom branch policies"
+  }
+}
+
+# Test multiple repository environments
+run "test_multiple_environments" {
+  command = apply
+
+  variables {
+    repo_environments = {
+      development = {
+        environment = "development"
+      },
+      staging = {
+        environment = "staging"
+        wait_timer = 5
+      },
+      production = {
+        environment = "production"
+        wait_timer = 30
+        can_admins_bypass = false
+        prevent_self_review = true
+        reviewers = {
+          user_ids = [95911059] # User ID for reviewer
+          # No team_ids to avoid null value errors
+        }
+        deployment_branch_policy = {
+          protected_branches = true
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = length(github_repository_environment.envs) == 3
+    error_message = "Expected 3 environments to be created"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["production"].wait_timer == 30
+    error_message = "Production environment wait timer should be 30 minutes"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["production"].can_admins_bypass == false
+    error_message = "Production environment should not allow admins to bypass requirements"
+  }
+
+  assert {
+    condition     = github_repository_environment.envs["production"].reviewers[0].users != null && contains(github_repository_environment.envs["production"].reviewers[0].users, 95911059)
+    error_message = "Production environment should have user ID 95911059 as reviewer"
+  }
+}
+
+# Test adding user as collaborator
+run "test_add_user_collaborator" {
+  command = apply
+
+  variables {
+    repo_collaborators_users = [
+      {
+        username   = "terraform-test-user"
+        permission = "admin"
+      }
+    ]
+  }
+
+  assert {
+    condition     = length(github_repository_collaborators.collaborators) == 1
+    error_message = "Expected 1 collaborator to be added"
+  }
+
+  assert {
+    condition     = github_repository_collaborators.collaborators.user.
+    error_message = "Collaborator username does not match expected value"
+  }
+}

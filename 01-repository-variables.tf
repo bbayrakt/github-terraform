@@ -307,3 +307,44 @@ variable "repo_branches" {
   }))
   default = {}
 }
+
+variable "repo_collaborators_users" {
+  description = "A list of users that should have access to the repository"
+  type = list(object({
+    username   = string
+    permission = string
+  }))
+  default = []
+}
+
+variable "repo_collaborators_teams" {
+  description = "A list of teams that should have access to the repository"
+  type = list(object({
+    team_id    = string
+    permission = string
+  }))
+  default = []
+}
+
+variable "repo_environments" {
+  description = "Map of repository environments to create. Each environment can have reviewers, deployment branch policies, and other settings."
+  type = map(object({
+    environment = string         # Name of the environment
+    wait_timer = optional(number, 0) # Deployment wait timer in minutes
+    can_admins_bypass = optional(bool, true) # Whether administrators can bypass protection rules
+    prevent_self_review = optional(bool, false) # Whether to prevent creators from approving their own deployments
+    
+    # Reviewers configuration for the environment
+    reviewers = optional(object({
+      user_ids = optional(set(number), []) # GitHub user IDs who can review
+      team_ids = optional(set(number), []) # GitHub team IDs who can review
+    }), null)
+    
+    # Deployment branch policy for the environment
+    deployment_branch_policy = optional(object({
+      protected_branches = optional(bool, false) # Only allow protected branches to deploy
+      custom_branch_policies = optional(bool, false) # Use custom branch policies instead of protected branches
+    }), null)
+  }))
+  default = {}
+}
